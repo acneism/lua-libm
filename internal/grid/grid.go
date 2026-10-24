@@ -46,7 +46,7 @@ func Input(function, index int) (x, y float64) {
 	if function == 6 {
 		switch mode {
 		case 0:
-			return float64(unit(a)*64 - 32), float64(unit(b)*64 - 32)
+			return float64(float64(unit(a)*64) - 32), float64(float64(unit(b)*64) - 32)
 		case 1:
 			return signed(unit(a), b), signed(1, c)
 		case 2:
@@ -57,7 +57,7 @@ func Input(function, index int) (x, y float64) {
 		case 4:
 			return special(a), special(b)
 		case 5:
-			return signed(float64(1+unit(a)*15), b), signed(float64(1+unit(b)*15), c)
+			return signed(float64(1+float64(unit(a)*15)), b), signed(float64(1+float64(unit(b)*15)), c)
 		case 6:
 			return math.Ldexp(signed(float64(1+unit(a)), b), int(c%120)-60), signed(float64(1+unit(b)), a)
 		default:
@@ -67,7 +67,7 @@ func Input(function, index int) (x, y float64) {
 	if function == 3 || function == 4 {
 		switch mode {
 		case 0, 7:
-			x = float64(unit(a)*2 - 1)
+			x = float64(float64(unit(a)*2) - 1)
 		case 1:
 			x = signed(float64(1-math.Ldexp(unit(a), -int(b%52))), c)
 		case 2:
@@ -87,9 +87,9 @@ func Input(function, index int) (x, y float64) {
 	}
 	switch mode {
 	case 0:
-		x = float64(unit(a)*64 - 32)
+		x = float64(float64(unit(a)*64) - 32)
 	case 1:
-		x = float64(unit(a)*2e8 - 1e8)
+		x = float64(float64(unit(a)*2e8) - 1e8)
 	case 2:
 		x = math.Float64frombits(a)
 	case 3:
