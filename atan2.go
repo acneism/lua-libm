@@ -1,115 +1,112 @@
+// Copyright (C) 2001-2024 Free Software Foundation, Inc.
+// IBM Accurate Mathematical Library, written by International Business Machines Corp.
+// Translated to Go from glibc 2.39 sysdeps/ieee754/dbl-64/e_atan2.c, atnat2.h, uatan.tbl, dla.h, mydefs.h.
+// Modified by acneism on 2026-10-24: see NOTICE and docs/porting.md.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 package libm
 
 import "math"
 
-const (
-	atan2Pi             float64 = 0x1.921fb54442d18p1
-	atan2PiLow          float64 = 0x1.1a62633145c07p-53
-	atan2HalfPi         float64 = 0x1.921fb54442d18p0
-	atan2HalfPiLow      float64 = 0x1.1a62633145c07p-54
-	atan2QuarterPi      float64 = 0x1.921fb54442d18p-1
-	atan2ThreeQuarterPi float64 = 0x1.2d97c7f3321d2p1
-)
-
 func atan2Special(y, x float64) (float64, bool) {
 	if math.IsNaN(x) {
-		return math.Float64frombits(math.Float64bits(x) | 1<<51), true
+		return quietNaN(x), true
 	}
 	if math.IsNaN(y) {
-		return math.Float64frombits(math.Float64bits(y) | 1<<51), true
+		return quietNaN(y), true
 	}
 	if y == 0 {
 		if math.Signbit(x) {
-			return math.Copysign(atan2Pi, y), true
+			return math.Copysign(pi, y), true
 		}
 		return math.Copysign(0, y), true
 	}
 	if x == 0 {
-		return math.Copysign(atan2HalfPi, y), true
+		return math.Copysign(piHalf, y), true
 	}
 	if math.IsInf(x, 0) {
 		if math.IsInf(y, 0) {
 			if x > 0 {
-				return math.Copysign(atan2QuarterPi, y), true
+				return math.Copysign(piQuarter, y), true
 			}
-			return math.Copysign(atan2ThreeQuarterPi, y), true
+			return math.Copysign(piThreeQuarter, y), true
 		}
 		if x > 0 {
 			return math.Copysign(0, y), true
 		}
-		return math.Copysign(atan2Pi, y), true
+		return math.Copysign(pi, y), true
 	}
 	if math.IsInf(y, 0) {
-		return math.Copysign(atan2HalfPi, y), true
+		return math.Copysign(piHalf, y), true
 	}
 	return 0, false
 }
 
 func atan2Ratio(ax, ay float64) (u, du float64) {
-	if ax < 0x1p-500 || ay < 0x1p-500 {
-		ax = float64(ax * 0x1p500)
-		ay = float64(ay * 0x1p500)
+	if ax < atan2ScaleDown || ay < atan2ScaleDown {
+		ax = float64(ax * atan2ScaleUp)
+		ay = float64(ay * atan2ScaleUp)
 	}
-	if ax > 0x1p500 || ay > 0x1p500 {
-		ax = float64(ax * 0x1p-500)
-		ay = float64(ay * 0x1p-500)
+	if ax > atan2ScaleUp || ay > atan2ScaleUp {
+		ax = float64(ax * atan2ScaleDown)
+		ay = float64(ay * atan2ScaleDown)
 	}
 	if ay < ax {
-		u = float64(ay / ax)
+		u = ay / ax
 		v := float64(ax * u)
 		vv := math.FMA(ax, u, -v)
-		du = float64(float64(float64(ay-v)-vv) / ax)
+		du = ((ay - v) - vv) / ax
 	} else {
-		u = float64(ax / ay)
+		u = ax / ay
 		v := float64(ay * u)
 		vv := math.FMA(ay, u, -v)
-		du = float64(float64(float64(ax-v)-vv) / ay)
+		du = ((ax - v) - vv) / ay
 	}
 	return
 }
 
 func atan2Direct(u, du float64) float64 {
-	if u < 0.0625 {
+	if u < atanTaylorLimit {
 		v := float64(u * u)
 		zz := math.FMA(float64(u*v), atanPolynomial(v), du)
-		return float64(u + zz)
+		return u + zz
 	}
-	i := atanIndex(u)
-	t3 := float64(u - atanTable(i*7))
+	entry := atanTable(atanIndex(u))
+	t3 := u - entry.argument
 	v, dv := exactAdd(t3, du)
-	t1, t2 := atanTable(i*7+1), atanTable(i*7+2)
-	p := math.FMA(v, atanTable(i*7+6), atanTable(i*7+5))
-	p = math.FMA(v, p, atanTable(i*7+4))
-	p = math.FMA(v, p, atanTable(i*7+3))
-	p = float64(float64(v*v) * p)
-	zz := math.FMA(v, t2, math.FMA(dv, t2, p))
-	return float64(t1 + zz)
+	p := float64(float64(v*v) * atanTableHigherPolynomial(entry, v))
+	zz := math.FMA(v, entry.linear, math.FMA(dv, entry.linear, p))
+	return entry.value + zz
 }
 
-func atan2Offset(u, du, base, low float64, add bool) float64 {
-	if u < 0.0625 {
+func atan2AddOffset(u, du, base, low float64) float64 {
+	if u < atanTaylorLimit {
 		v := float64(u * u)
 		zz := float64(float64(u*v) * atanPolynomial(v))
-		if add {
-			t2, cor := exactAdd(base, u)
-			t3 := float64(float64(float64(low+cor)+du) + zz)
-			return float64(t2 + t3)
-		}
+		t2, cor := exactAdd(base, u)
+		t3 := ((low + cor) + du) + zz
+		return t2 + t3
+	}
+	entry := atanTable(atanIndex(u))
+	v := (u - entry.argument) + du
+	zz := math.FMA(v, atanTablePolynomial(entry, v), low)
+	t1 := base + entry.value
+	return t1 + zz
+}
+
+func atan2SubtractOffset(u, du, base, low float64) float64 {
+	if u < atanTaylorLimit {
+		v := float64(u * u)
+		zz := float64(float64(u*v) * atanPolynomial(v))
 		t2, cor := exactSub(base, u)
-		t3 := float64(float64(float64(low+cor)-du) - zz)
-		return float64(t2 + t3)
+		t3 := ((low + cor) - du) - zz
+		return t2 + t3
 	}
-	i := atanIndex(u)
-	v := float64(float64(u-atanTable(i*7)) + du)
-	p := atanTablePolynomial(i, v)
-	if add {
-		zz := math.FMA(v, p, low)
-		t1 := float64(base + atanTable(i*7+1))
-		return float64(t1 + zz)
-	}
-	zz := math.FMA(-v, p, low)
-	t1 := float64(base - atanTable(i*7+1))
-	return float64(t1 + zz)
+	entry := atanTable(atanIndex(u))
+	v := (u - entry.argument) + du
+	zz := math.FMA(-v, atanTablePolynomial(entry, v), low)
+	t1 := base - entry.value
+	return t1 + zz
 }
 
 func Atan2(y, x float64) float64 {
@@ -117,15 +114,15 @@ func Atan2(y, x float64) float64 {
 		return result
 	}
 	ax, ay := math.Abs(x), math.Abs(y)
-	de := (highWord(y) & 0x7ff00000) - (highWord(x) & 0x7ff00000)
-	if de >= 59768832 {
-		return math.Copysign(atan2HalfPi, y)
+	de := (highWord(y) & exponentHighMask) - (highWord(x) & exponentHighMask)
+	if de >= atan2ExponentGapLimit {
+		return math.Copysign(piHalf, y)
 	}
-	if de <= -59768832 {
+	if de <= -atan2ExponentGapLimit {
 		if x > 0 {
-			return math.Copysign(float64(ay/ax), y)
+			return math.Copysign(ay/ax, y)
 		}
-		return math.Copysign(atan2Pi, y)
+		return math.Copysign(pi, y)
 	}
 	u, du := atan2Ratio(ax, ay)
 	var result float64
@@ -133,11 +130,11 @@ func Atan2(y, x float64) float64 {
 	case x > 0 && ay < ax:
 		result = atan2Direct(u, du)
 	case x > 0:
-		result = atan2Offset(u, du, atan2HalfPi, atan2HalfPiLow, false)
+		result = atan2SubtractOffset(u, du, piHalf, piHalfLow)
 	case ax < ay:
-		result = atan2Offset(u, du, atan2HalfPi, atan2HalfPiLow, true)
+		result = atan2AddOffset(u, du, piHalf, piHalfLow)
 	default:
-		result = atan2Offset(u, du, atan2Pi, atan2PiLow, false)
+		result = atan2SubtractOffset(u, du, pi, piLow)
 	}
 	return math.Copysign(result, y)
 }
