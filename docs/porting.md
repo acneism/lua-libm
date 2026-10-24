@@ -143,7 +143,7 @@ The [x86-64 multiarch Makefile](https://github.com/bminor/glibc/blob/glibc-2.39/
 
 Branred is a deliberate exception. The [dbl-64 Makefile](https://github.com/bminor/glibc/blob/glibc-2.39/sysdeps/ieee754/dbl-64/Makefile) says `CFLAGS-branred.c += $(config-cflags-nofma)`. The sin/tan FMA wrappers call the ordinary __branred, not an FMA copy. It was audited with `-O2 -ffp-contract=off -frounding-math -mprefer-vector-width=128 -g`; its object contains no FMA instruction. Compiling this helper with the caller's FMA flags would change its split operations and produce incorrect large-argument results.
 
-The audit stubs omit errno updates and floating-point environment save/restore/underflow forcing. They do not replace any polynomial, table, reduction, or double-length operation. The numerical instruction boundaries below refer to the compiled dbl-64 function symbols, before wrapper renaming. Counts are static occurrences in the object, including compiler-duplicated paths; they are not per-call operation counts.
+The stand-in headers omit floating-point environment save/restore and underflow forcing. The objects retain unresolved errno calls; the audit disassembles the objects without linking or executing those calls. No polynomial, table, reduction, or double-length operation is replaced. The numerical instruction boundaries below refer to the compiled dbl-64 function symbols, before wrapper renaming. Counts are static occurrences in the object, including compiler-duplicated paths; they are not per-call operation counts.
 
 | C body | Scalar FMA instructions | Audited regions and Go implementation |
 | --- | ---: | --- |
