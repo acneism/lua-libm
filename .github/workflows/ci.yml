@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           repository: acneism/lua
-          ref: a7bf32439e456a4f3e4dd0345552e4a950a48370
+          ref: 28d5e0ab1c29239c8b6c7e5afe766d0fb01912e3
           path: .integration/lua
       - name: Run the complete Lua corpus with injected math functions
         run: go run ./internal/cmd/integration -lua .integration/lua
