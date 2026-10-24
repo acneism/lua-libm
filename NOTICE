@@ -1,0 +1,40 @@
+lua-libm
+Copyright 2026 acneism
+Licensed under LGPL-2.1-or-later.
+
+This module contains a Go translation of the IBM Accurate Mathematical Library
+from GNU libc 2.39, sysdeps/ieee754/dbl-64:
+
+s_sin.c, sincostab.c, branred.c, branred.h, usncs.h,
+s_tan.c, utan.h, utan.tbl,
+e_asin.c, uasncs.h, asincos.tbl, root.tbl, powtwo.tbl,
+s_atan.c, atnat.h, uatan.tbl,
+e_atan2.c, atnat2.h, dla.h, mydefs.h.
+
+The upstream files state:
+
+IBM Accurate Mathematical Library
+written by International Business Machines Corp.
+Copyright (C) 2001-2024 Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program; if not, see https://www.gnu.org/licenses/.
+
+Upstream: https://sourceware.org/glibc/
+Source tag: glibc-2.39
+Translated source and modifications: https://github.com/acneism/lua-libm
+
+The changes replace C unions with math.Float64bits, encode lookup tables as
+immutable strings, share repeated polynomial and reduction operations, spell
+out the FMA contractions selected by GCC, and make NaN selection explicit.
+Floating-point environment flags and errno are not exposed by this Go API.

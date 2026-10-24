@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: go test ./...
+      - run: go vet ./...
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: acneism/lua
+          ref: 3ab696bab0ed4b85f5de1fe2ca09ad1df301d18a
+          path: .integration/lua
+      - name: Run the complete Lua corpus with injected math functions
+        run: python scripts/integration.py --lua .integration/lua
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Check formatting and dependencies
+        run: |
+          test -z "$(gofmt -l .)"
+          test "$(go list -m all | wc -l)" -eq 1
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.15.0
+
+  race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: go test -race ./...
+      - name: Enforce package coverage
+        run: |
+          mkdir -p work
+          go test -coverprofile=work/coverage.out .
+          go tool cover -func=work/coverage.out
+          go tool cover -func=work/coverage.out | awk '/^total:/ { if ($3+0 < 85) exit 1 }'
+
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7.2.16
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify all 700000 recorded Redis answers
+        run: go run ./internal/cmd/capture -addr 127.0.0.1:6379 -verify
