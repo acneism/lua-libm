@@ -33,10 +33,10 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           repository: acneism/lua
-          ref: 3ab696bab0ed4b85f5de1fe2ca09ad1df301d18a
+          ref: a7bf32439e456a4f3e4dd0345552e4a950a48370
           path: .integration/lua
       - name: Run the complete Lua corpus with injected math functions
-        run: python scripts/integration.py --lua .integration/lua
+        run: go run ./internal/cmd/integration -lua .integration/lua
 
   lint:
     runs-on: ubuntu-latest
@@ -91,5 +91,5 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Verify all 700000 recorded Redis answers
+      - name: Verify all 986775 recorded Redis answers
         run: go run ./internal/cmd/capture -addr 127.0.0.1:6379 -verify
