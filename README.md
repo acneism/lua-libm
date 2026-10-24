@@ -2,7 +2,7 @@
 
 This module ports the IBM Accurate Mathematical Library routines from glibc 2.39 to Go. It provides `Sin`, `Cos`, `Tan`, `Asin`, `Acos`, `Atan`, and `Atan2` for Redis 7.2.16 compatible Lua execution.
 
-The target is glibc on x86-64 with FMA enabled. Every function uses the same algorithm and explicit `math.FMA` operations. Explicit `float64` conversions preserve the remaining rounding steps on other architectures. The module uses only the Go standard library. It has no mutable package variables, cgo, assembly, `unsafe`, or `reflect`.
+The target is glibc on x86-64 with FMA enabled. Every function uses the same algorithm and explicit `math.FMA` operations. Explicit `float64` conversions preserve the remaining rounding steps on other architectures. The module uses only the Go standard library. Its package variables are read-only lookup tables; there is no shared mutable state, cgo, assembly, `unsafe`, or `reflect` in production code.
 
 ```go
 package main
@@ -24,7 +24,7 @@ func main() {
 
 `Atan2(y, x)` takes arguments in that order. Each other function takes one `float64`. Functions have no state and can run concurrently.
 
-Run `go test ./...` and `go vet ./...`. The checked-in fixture contains 100000 Redis answers for each function. To verify every recorded answer against a running Redis 7.2.16, run:
+Run `go test ./...` and `go vet ./...`. The checked-in fixture contains 986775 Redis answers, including 100000 original inputs per function and neighborhoods of trigonometric reduction and domain boundaries. To verify every recorded answer against a running Redis 7.2.16, run:
 
 ```text
 go run ./internal/cmd/capture -addr 127.0.0.1:6379 -verify

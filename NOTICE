@@ -35,6 +35,8 @@ Source tag: glibc-2.39
 Translated source and modifications: https://github.com/acneism/lua-libm
 
 The changes replace C unions with math.Float64bits, encode lookup tables as
-immutable strings, share repeated polynomial and reduction operations, spell
-out the FMA contractions selected by GCC, and make NaN selection explicit.
+read-only hexadecimal uint64 arrays with typed rows, share repeated polynomial
+and reduction operations, spell out the FMA contractions selected by GCC's
+final assembly, and make NaN selection explicit. A Go generator checks the
+upstream SHA-256 manifest before reproducing the table source.
 Floating-point environment flags and errno are not exposed by this Go API.

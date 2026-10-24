@@ -1,15 +1,35 @@
 # Testing
 
-`TestRedisGrid` checks 100000 inputs per function against recorded Redis 7.2.16 answers, for 700000 comparisons. Every supported OS executes the same compressed fixture and generator. The fixture was captured on the Azure reference machine through Redis EVAL, not through the port or native libm calls.
+`TestRedisGrid` checks 986775 inputs against recorded Redis 7.2.16 answers. Every supported OS executes the same compressed fixture and deterministic generator. The fixture was captured on the Azure reference machine through Redis EVAL. All 700000 original answers remain unchanged; the additional 286775 answers extend the boundary coverage.
 
-The deterministic generator is `internal/grid`. Its SplitMix64 inputs have no package state. It covers ordinary values, table intervals, range boundaries and their neighbors, signed zero, subnormals, infinities, NaNs, and large trigonometric arguments beyond 1e300. `Asin` and `Acos` concentrate samples near both ends of their domains. `Atan2` includes all quadrants, scale changes, and large exponent differences.
+| Function | Recorded answers |
+| --- | ---: |
+| sin | 181930 |
+| cos | 181930 |
+| tan | 222895 |
+| asin | 100010 |
+| acos | 100010 |
+| atan | 100000 |
+| atan2 | 100000 |
 
-`internal/cmd/capture` requires Redis 7.2.16. It evaluates batches of 500 inputs and records Redis `string.format('%.17g', ...)` replies. `-verify` checks every line against a fresh Redis execution and rejects missing, reordered, or extra records. To regenerate the fixture, omit `-verify`. Expected answers must never be edited by hand.
+The generator in `internal/grid` describes each function by its name, evaluator, generator, and count. Separate input families cover ordinary circular functions, inverse domains, and two-argument atan. Its SplitMix64 inputs have no package state. The original inputs cover ordinary values, table intervals, range boundaries and their neighbors, signed zero, subnormals, infinities, NaNs, and large trigonometric arguments beyond 1e300. `Atan2` includes all quadrants, scale changes, and large exponent differences.
+
+For sin and cos, extra grids contain five consecutive binary64 values centered on every multiple of pi/2 and pi for integer multipliers from -4096 through 4096. Tan additionally includes multiples of pi/4. These neighborhoods include both neighbors up to two ULP away. Asin and acos add the corresponding five-value neighborhoods of -1 and +1, including values outside the domain. Every floating product used to generate inputs has an explicit rounding barrier, so input bits agree across architectures.
+
+`internal/cmd/capture` requires Redis 7.2.16. It evaluates batches of 500 inputs and records Redis `string.format('%.17g', ...)` replies as named TSV rows. `-verify` checks every line against a fresh Redis execution and rejects missing, reordered, or extra records. To regenerate the fixture, omit `-verify`; capture replaces the fixture only after every response succeeds. Expected answers must never be edited by hand.
 
 CI has the required `test (ubuntu-latest)`, `test (windows-latest)`, `test (macos-latest)`, `lint`, `race`, and `reference` jobs. The macOS job runs on arm64. The root package coverage threshold is 85%. The module dependency check requires `go list -m all` to contain one line.
 
-The integration job pins `lua` to commit `3ab696bab0ed4b85f5de1fe2ca09ad1df301d18a`. `scripts/integration.py` copies that checkout into a temporary directory, injects all seven functions into its existing `TestCorpus`, and appends `testdata/libm.json` to the temporary corpus. Original answers remain unchanged. The temporary Lua module alone receives a local test dependency on this module; neither production module gains a dependency or replace directive. Each OS executes all 4129 Lua corpus snippets and the 16 precise libm snippets.
+The integration test checks both `testdata/snippets.json` and `testdata/libm.json` from the Lua checkout pinned in `.github/workflows/ci.yml`. This includes the 20 reviewer L1 snippets. It calls the public `github.com/acneism/lua/luatest.RunCorpus(t, files, options)` helper with all seven functions supplied through `Options.Math`. The helper uses Lua's original wrapper, environment, limits, and normalization rules. The integration command creates a separate temporary test module with local replacements; it never patches Lua sources or corpus files. Neither production module gains a dependency or replace directive. To run it against a checkout containing the A3 helper:
+
+```text
+go run ./internal/cmd/integration -lua ../lua
+```
 
 `FuzzTrig` evaluates every function twice on arbitrary binary64 bit patterns and requires identical bits without a panic. PR CI runs it for 30 seconds; the nightly workflow runs it for ten minutes.
 
-`scripts/mutate.py` creates temporary copies and checks three mutations. Removing the FMA from the atan table correction, changing the large-argument quadrant in `branred`, and flipping one bit of a sine table constant must each fail `TestRedisGrid`. The script leaves production sources untouched and saves logs in `work/`.
+The Go mutation command creates isolated copies of the sources and fixture. Each mutation must fail `TestRedisGrid`: remove the atan table correction FMA, change the large-argument quadrant in `branred`, flip one bit in a sine table entry, or revert both tangent small-reduction correction FMAs. It leaves production sources untouched and saves the failing test logs in `work/mutations/`.
+
+```text
+go run ./internal/cmd/mutate
+```
