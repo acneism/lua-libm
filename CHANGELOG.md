@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-11-06
+
 - Add the glibc 2.39 IBM trigonometric algorithms with explicit FMA rounding.
 - Add read-only typed lookup tables, a source-verified Go table generator, and argument reduction for large finite inputs.
 - Record 986775 Redis 7.2.16 reference answers through the capture tool, preserving all original 700000 answers.
